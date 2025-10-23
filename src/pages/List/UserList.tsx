@@ -1,39 +1,83 @@
-// src/pages/List/UserList.tsx
 import React, { useState } from 'react';
 import { FormData } from '../../tryes/FormTypes';
 import { useUsers } from '../../context/UserContext';
 
 const UserList: React.FC = () => {
-  const { users, deleteUser } = useUsers();
+  const { users, deleteUser, loading, error } = useUsers();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   // Filter users based on search term
   const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.mobileNumber.includes(searchTerm)
   );
 
-  const handleDelete = (id: string) => {
-    deleteUser(id);
-    setDeleteConfirm(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteUser(id!);
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error('Error deleting user:', err);
+    }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return dateString; // Return original string if date parsing fails
+    }
   };
 
   const formatAddress = (addressLine1: string, addressLine2: string, city: string, pinCode: string) => {
-    let address = addressLine1;
+    let address = addressLine1 || '';
     if (addressLine2) address += `, ${addressLine2}`;
-    address += `, ${city} - ${pinCode}`;
+    if (city) address += `, ${city}`;
+    if (pinCode) address += ` - ${pinCode}`;
     return address;
   };
+
+  // Safe function to get user initials
+  const getUserInitials = (fullName: string) => {
+    if (!fullName || typeof fullName !== 'string') return '??';
+    
+    const names = fullName.trim().split(' ');
+    if (names.length === 0) return '??';
+    
+    if (names.length === 1) {
+      return names[0].charAt(0).toUpperCase();
+    }
+    
+    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
+  };
+
+  if (loading) {
+    return (
+      <div className="container mt-4">
+        <div className="d-flex justify-content-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-4">
@@ -94,7 +138,9 @@ const UserList: React.FC = () => {
               {filteredUsers.length === 0 ? (
                 <div className="text-center py-5">
                   <i className="bi bi-people display-1 text-muted"></i>
-                  <h4 className="text-muted mt-3">No users found</h4>
+                  <h4 className="text-muted mt-3">
+                    {searchTerm ? 'No users found' : 'No users available'}
+                  </h4>
                   <p className="text-muted">
                     {searchTerm ? 'Try adjusting your search terms' : 'Start by adding some users from the Form page'}
                   </p>
@@ -113,17 +159,20 @@ const UserList: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredUsers.map((user: any, index: any) => (
-                        <tr key={user.id} className={index % 2 === 0 ? 'table-default' : ''}>
+                      {filteredUsers.map((user: FormData, index: number) => (
+                        <tr key={user._id} className={index % 2 === 0 ? 'table-default' : ''}>
                           <td className="ps-4">
                             <div className="d-flex align-items-center">
-                              <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style={{ width: '40px', height: '40px' }}>
+                              <div 
+                                className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                                style={{ width: '40px', height: '40px' }}
+                              >
                                 <span className="text-white fw-bold">
-                                  {user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                  {getUserInitials(user.fullName)}
                                 </span>
                               </div>
                               <div>
-                                <div className="fw-semibold">{user.name}</div>
+                                <div className="fw-semibold">{user.fullName}</div>
                                 <small className="text-muted">{user.city}</small>
                               </div>
                             </div>
@@ -137,8 +186,8 @@ const UserList: React.FC = () => {
                           <td>
                             <div className="d-flex align-items-center">
                               <i className="bi bi-envelope me-2 text-muted"></i>
-                              <a href={`mailto:${user.email}`} className="text-decoration-none">
-                                {user.email}
+                              <a href={`mailto:${user.emailAddress}`} className="text-decoration-none">
+                                {user.emailAddress}
                               </a>
                             </div>
                           </td>
@@ -149,7 +198,12 @@ const UserList: React.FC = () => {
                           </td>
                           <td>
                             <small className="text-muted">
-                              {formatAddress(user.addressLine1, user.addressLine2, user.city, user.pinCode)}
+                              {formatAddress(
+                                user.addressLine1, 
+                                user.addressLine2, 
+                                user.city, 
+                                user.pinCode
+                              )}
                             </small>
                           </td>
                           <td className="text-center pe-4">
@@ -164,7 +218,7 @@ const UserList: React.FC = () => {
                               <button
                                 className="btn btn-outline-danger btn-sm"
                                 title="Delete User"
-                                onClick={() => setDeleteConfirm(user.id!)}
+                                onClick={() => setDeleteConfirm(user._id!)}
                               >
                                 <i className="bi bi-trash"></i>
                               </button>
@@ -205,9 +259,19 @@ const UserList: React.FC = () => {
                       type="button"
                       className="btn btn-danger"
                       onClick={() => handleDelete(deleteConfirm)}
+                      disabled={loading}
                     >
-                      <i className="bi bi-trash me-1"></i>
-                      Delete
+                      {loading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-trash me-1"></i>
+                          Delete
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

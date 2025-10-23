@@ -1,8 +1,8 @@
 export interface FormData {
-  id?: string; // Add this line
-  name: string;
+  _id?: string;
+  fullName: string;
   mobileNumber: string;
-  email: string;
+  emailAddress: string;
   dateOfBirth: string;
   addressLine1: string;
   addressLine2: string;
@@ -11,9 +11,9 @@ export interface FormData {
 }
 
 export interface FormErrors {
-  name?: string;
+  fullName?: string;
   mobileNumber?: string;
-  email?: string;
+  emailAddress?: string;
   dateOfBirth?: string;
   addressLine1?: string;
   city?: string;

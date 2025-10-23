@@ -1,12 +1,17 @@
-// src/pages/Form/UserForm.tsx
 import React, { useState } from 'react';
+// import { FormErrors, FormData } from '../';
+// import { FormData } from '../tryes/FormTypes';
+
+import { useUsers } from '../../context/UserContext';
 import { FormErrors, FormData } from '../../tryes/FormTypes';
 
 const UserForm: React.FC = () => {
+  const { addUser, loading, error } = useUsers();
+  
   const [formData, setFormData] = useState<FormData>({
-    name: '',
+    fullName: '',
     mobileNumber: '',
-    email: '',
+    emailAddress: '',
     dateOfBirth: '',
     addressLine1: '',
     addressLine2: '',
@@ -17,15 +22,15 @@ const UserForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // Validation rules
+  // Validation rules (updated field names)
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
     // Name validation
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters long';
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full Name is required';
+    } else if (formData.fullName.trim().length < 2) {
+      newErrors.fullName = 'Full Name must be at least 2 characters long';
     }
 
     // Mobile number validation
@@ -38,21 +43,15 @@ const UserForm: React.FC = () => {
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (!formData.emailAddress) {
+      newErrors.emailAddress = 'Email is required';
+    } else if (!emailRegex.test(formData.emailAddress)) {
+      newErrors.emailAddress = 'Please enter a valid email address';
     }
 
     // Date of birth validation
     if (!formData.dateOfBirth) {
       newErrors.dateOfBirth = 'Date of birth is required';
-    } else {
-      const dob = new Date(formData.dateOfBirth);
-      const today = new Date();
-      if (dob >= today) {
-        newErrors.dateOfBirth = 'Date of birth must be in the past';
-      }
     }
 
     // Address validation
@@ -79,37 +78,40 @@ const UserForm: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev: FormData) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value
     }));
 
     // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
-      setErrors((prev: FormErrors) => ({
+      setErrors(prev => ({
         ...prev,
         [name]: undefined
       }));
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitted(true);
 
     if (validateForm()) {
-      // Form is valid, handle submission
-      console.log('Form submitted:', formData);
-      alert('Form submitted successfully!');
-      // You can add API call or further processing here
+      try {
+        await addUser(formData);
+        alert('User added successfully!');
+        handleReset();
+      } catch (err) {
+        alert('Failed to add user. Please try again.');
+      }
     }
   };
 
   const handleReset = () => {
     setFormData({
-      name: '',
+      fullName: '',
       mobileNumber: '',
-      email: '',
+      emailAddress: '',
       dateOfBirth: '',
       addressLine1: '',
       addressLine2: '',
@@ -129,24 +131,30 @@ const UserForm: React.FC = () => {
               <h2 className="text-center mb-0">User Registration Form</h2>
             </div>
             <div className="card-body">
+              {error && (
+                <div className="alert alert-danger" role="alert">
+                  {error}
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} noValidate>
-                {/* Name and Mobile Number in same row */}
+                {/* Name and Mobile Number */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label htmlFor="name" className="form-label text-start w-100">
+                    <label htmlFor="fullName" className="form-label text-start w-100">
                       Full Name <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
-                      className={`form-control ${errors.name ? 'is-invalid' : ''}`}
-                      id="name"
-                      name="name"
-                      value={formData.name}
+                      className={`form-control ${errors.fullName ? 'is-invalid' : ''}`}
+                      id="fullName"
+                      name="fullName"
+                      value={formData.fullName}
                       onChange={handleChange}
                       placeholder="Enter your full name"
                     />
-                    {errors.name && (
-                      <div className="invalid-feedback text-start">{errors.name}</div>
+                    {errors.fullName && (
+                      <div className="invalid-feedback text-start">{errors.fullName}</div>
                     )}
                   </div>
                   <div className="col-md-6 mb-3">
@@ -169,23 +177,23 @@ const UserForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Email and Date of Birth in same row */}
+                {/* Email and Date of Birth */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
-                    <label htmlFor="email" className="form-label text-start w-100">
+                    <label htmlFor="emailAddress" className="form-label text-start w-100">
                       Email Address <span className="text-danger">*</span>
                     </label>
                     <input
                       type="email"
-                      className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                      id="email"
-                      name="email"
-                      value={formData.email}
+                      className={`form-control ${errors.emailAddress ? 'is-invalid' : ''}`}
+                      id="emailAddress"
+                      name="emailAddress"
+                      value={formData.emailAddress}
                       onChange={handleChange}
                       placeholder="Enter your email address"
                     />
-                    {errors.email && (
-                      <div className="invalid-feedback text-start">{errors.email}</div>
+                    {errors.emailAddress && (
+                      <div className="invalid-feedback text-start">{errors.emailAddress}</div>
                     )}
                   </div>
                   <div className="col-md-6 mb-3">
@@ -206,7 +214,7 @@ const UserForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Address Line 1 and Address Line 2 in same row */}
+                {/* Address Fields */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label htmlFor="addressLine1" className="form-label text-start w-100">
@@ -241,7 +249,7 @@ const UserForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* City and Pin Code in same row */}
+                {/* City and Pin Code */}
                 <div className="row">
                   <div className="col-md-6 mb-3">
                     <label htmlFor="city" className="form-label text-start w-100">
@@ -286,14 +294,16 @@ const UserForm: React.FC = () => {
                     type="button"
                     className="btn btn-outline-secondary me-md-2"
                     onClick={handleReset}
+                    disabled={loading}
                   >
                     Reset
                   </button>
                   <button
                     type="submit"
                     className="btn btn-primary"
+                    disabled={loading}
                   >
-                    Submit
+                    {loading ? 'Adding...' : 'Submit'}
                   </button>
                 </div>
 
