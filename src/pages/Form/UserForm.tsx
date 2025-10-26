@@ -4,7 +4,7 @@ import { FormErrors, FormData } from '../../tryes/FormTypes';
 import { useNavigate } from 'react-router-dom';
 
 const UserForm: React.FC = () => {
-  const { addUser, updateUser, editingUser, setEditingUser, loading, error } = useUsers();
+  const { addUser, updateUser, editingUser, setEditingUser, loading, error, clearError } = useUsers();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState<FormData>({
@@ -38,7 +38,17 @@ const UserForm: React.FC = () => {
         pinCode: ''
       });
     }
-  }, [editingUser]);
+    // Clear any existing errors when form data changes
+    setErrors({});
+    clearError();
+  }, [editingUser, clearError]);
+
+  // Clear error when component unmounts or when starting new operation
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
 
   // Validation rules
   const validateForm = (): boolean => {
@@ -68,8 +78,18 @@ const UserForm: React.FC = () => {
     }
 
     // Date of birth validation
+    const dateRegex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
     if (!formData.dateOfBirth) {
       newErrors.dateOfBirth = 'Date of birth is required';
+    } else if (!dateRegex.test(formData.dateOfBirth)) {
+      newErrors.dateOfBirth = 'Please enter date in DD/MM/YYYY format';
+    } else {
+      // Additional validation for valid date
+      const [day, month, year] = formData.dateOfBirth.split('/').map(Number);
+      const date = new Date(year, month - 1, day);
+      if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
+        newErrors.dateOfBirth = 'Please enter a valid date';
+      }
     }
 
     // Address validation
@@ -96,9 +116,27 @@ const UserForm: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
+    let formattedValue = value;
+    
+    // Format date input for DD/MM/YYYY
+    if (name === 'dateOfBirth') {
+      // Remove any non-digit characters
+      const digitsOnly = value.replace(/\D/g, '');
+      
+      // Format as DD/MM/YYYY
+      if (digitsOnly.length <= 2) {
+        formattedValue = digitsOnly;
+      } else if (digitsOnly.length <= 4) {
+        formattedValue = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+      } else {
+        formattedValue = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: formattedValue
     }));
 
     // Clear error when user starts typing
@@ -108,11 +146,17 @@ const UserForm: React.FC = () => {
         [name]: undefined
       }));
     }
+
+    // Clear global error when user starts typing
+    if (error) {
+      clearError();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitted(true);
+    clearError(); // Clear any previous errors
 
     if (validateForm()) {
       try {
@@ -129,8 +173,10 @@ const UserForm: React.FC = () => {
         handleReset();
         // Navigate to list page after successful submission
         navigate('/list');
-      } catch (err) {
-        alert(editingUser ? 'Failed to update user. Please try again.' : 'Failed to add user. Please try again.');
+      } catch (err: any) {
+        // Error is already set in context, no need for additional alert
+        console.error('Form submission error:', err);
+        // The error will be displayed in the form via the context error state
       }
     }
   };
@@ -149,6 +195,7 @@ const UserForm: React.FC = () => {
     setErrors({});
     setIsSubmitted(false);
     setEditingUser(null);
+    clearError();
   };
 
   const handleCancelEdit = () => {
@@ -170,7 +217,7 @@ const UserForm: React.FC = () => {
             <div className="card-body">
               {error && (
                 <div className="alert alert-danger" role="alert">
-                  {error}
+                  <strong>Error:</strong> {error}
                 </div>
               )}
               
@@ -235,19 +282,23 @@ const UserForm: React.FC = () => {
                   </div>
                   <div className="col-md-6 mb-3">
                     <label htmlFor="dateOfBirth" className="form-label text-start w-100">
-                      Date of Birth <span className="text-danger">*</span>
+                      Date of Birth (DD/MM/YYYY) <span className="text-danger">*</span>
                     </label>
                     <input
-                      type="date"
+                      type="text"
                       className={`form-control ${errors.dateOfBirth ? 'is-invalid' : ''}`}
                       id="dateOfBirth"
                       name="dateOfBirth"
                       value={formData.dateOfBirth}
                       onChange={handleChange}
+                      placeholder="DD/MM/YYYY"
+                      maxLength={10}
                     />
                     {errors.dateOfBirth && (
                       <div className="invalid-feedback text-start">{errors.dateOfBirth}</div>
                     )}
+                    <small className="form-text text-muted">
+                    </small>
                   </div>
                 </div>
 

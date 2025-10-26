@@ -205,31 +205,90 @@ export const userService = {
 };
 
 // Utility function to convert date format from YYYY-MM-DD to MM/DD/YYYY
+// Utility function to convert date format from DD/MM/YYYY to MM/DD/YYYY for API
 function convertDateFormat(dateString: string): string {
   console.log("📅 [DATE CONVERSION] - Converting date format:", dateString);
 
   // If already in MM/DD/YYYY format, return as is
   if (dateString.includes("/")) {
-    console.log("📅 [DATE CONVERSION] - Date already in correct format");
-    return dateString;
+    const parts = dateString.split("/");
+    if (
+      parts.length === 3 &&
+      parts[0].length === 2 &&
+      parts[1].length === 2 &&
+      parts[0] <= "12"
+    ) {
+      console.log("📅 [DATE CONVERSION] - Date already in correct format");
+      return dateString;
+    }
   }
 
-  // Convert from YYYY-MM-DD to MM/DD/YYYY
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
-    console.error("❌ [DATE CONVERSION] - Invalid date format:", dateString);
+  // Convert from DD/MM/YYYY to MM/DD/YYYY
+  try {
+    const [day, month, year] = dateString
+      .split("/")
+      .map((part) => parseInt(part, 10));
+
+    // Validate date
+    const date = new Date(year, month - 1, day);
+    if (
+      isNaN(date.getTime()) ||
+      date.getDate() !== day ||
+      date.getMonth() !== month - 1
+    ) {
+      console.error("❌ [DATE CONVERSION] - Invalid date format:", dateString);
+      throw new Error(`Invalid date format: ${dateString}`);
+    }
+
+    const convertedDate = `${month.toString().padStart(2, "0")}/${day
+      .toString()
+      .padStart(2, "0")}/${year}`;
+    console.log("📅 [DATE CONVERSION] - Converted date:", convertedDate);
+
+    return convertedDate;
+  } catch (error) {
+    console.error("❌ [DATE CONVERSION] - Error converting date:", error);
     throw new Error(`Invalid date format: ${dateString}`);
   }
-
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const year = date.getFullYear();
-
-  const convertedDate = `${month}/${day}/${year}`;
-  console.log("📅 [DATE CONVERSION] - Converted date:", convertedDate);
-
-  return convertedDate;
 }
+
+// Utility function to convert from API format (MM/DD/YYYY) to display format (DD/MM/YYYY)
+export const convertToDisplayFormat = (dateString: string): string => {
+  if (!dateString) return "";
+
+  try {
+    // If already in DD/MM/YYYY format, return as is
+    if (dateString.includes("/")) {
+      const parts = dateString.split("/");
+      if (
+        parts.length === 3 &&
+        parts[0].length === 2 &&
+        parts[1].length === 2
+      ) {
+        const [first, second] = parts;
+        // Check if it's already in DD/MM/YYYY (if first part > 12, it's likely day)
+        if (parseInt(first) > 12) {
+          return dateString;
+        }
+      }
+    }
+
+    // Convert from MM/DD/YYYY to DD/MM/YYYY
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return dateString;
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error("Error converting to display format:", error);
+    return dateString;
+  }
+};
 
 // Utility function to test the API connection and create a user
 export const testCreateUser = async () => {
