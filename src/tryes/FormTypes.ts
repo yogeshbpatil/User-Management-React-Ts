@@ -3,7 +3,7 @@ export interface FormData {
   fullName: string;
   mobileNumber: string;
   emailAddress: string;
-  dateOfBirth: string;
+  dateOfBirth: string; // This will be in DD/MM/YYYY format
   addressLine1: string;
   addressLine2: string;
   city: string;
