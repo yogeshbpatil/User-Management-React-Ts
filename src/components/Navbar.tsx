@@ -8,6 +8,7 @@ const Navbar: React.FC = () => {
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary">
       <div className="container">
         <Link className="navbar-brand" to="/">
+          <i className="bi bi-people-fill me-2"></i>
           User Management
         </Link>
         
@@ -16,13 +17,15 @@ const Navbar: React.FC = () => {
             className={`nav-link ${location.pathname === '/form' ? 'active' : ''}`} 
             to="/form"
           >
-            Form
+            <i className="bi bi-person-plus me-1"></i>
+            Add User
           </Link>
           <Link 
             className={`nav-link ${location.pathname === '/list' ? 'active' : ''}`} 
             to="/list"
           >
-            List
+            <i className="bi bi-list-ul me-1"></i>
+            User List
           </Link>
         </div>
       </div>

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { FormData } from '../../tryes/FormTypes';
 import { useUsers } from '../../context/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 const UserList: React.FC = () => {
-  const { users, deleteUser, loading, error } = useUsers();
+  const { users, deleteUser, setEditingUser, loading, error } = useUsers();
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Filter users based on search term
   const filteredUsers = users.filter(user =>
@@ -23,6 +25,11 @@ const UserList: React.FC = () => {
     }
   };
 
+  const handleEdit = (user: FormData) => {
+    setEditingUser(user);
+    navigate('/form'); // Navigate to form page for editing
+  };
+
   const formatDate = (dateString: string) => {
     try {
       return new Date(dateString).toLocaleDateString('en-US', {
@@ -31,7 +38,7 @@ const UserList: React.FC = () => {
         day: 'numeric'
       });
     } catch (error) {
-      return dateString; // Return original string if date parsing fails
+      return dateString;
     }
   };
 
@@ -211,7 +218,7 @@ const UserList: React.FC = () => {
                               <button
                                 className="btn btn-outline-primary btn-sm"
                                 title="Edit User"
-                                onClick={() => {/* Add edit functionality */}}
+                                onClick={() => handleEdit(user)}
                               >
                                 <i className="bi bi-pencil"></i>
                               </button>

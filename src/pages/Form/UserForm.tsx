@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-// import { FormErrors, FormData } from '../';
-// import { FormData } from '../tryes/FormTypes';
-
+import React, { useState, useEffect } from 'react';
 import { useUsers } from '../../context/UserContext';
 import { FormErrors, FormData } from '../../tryes/FormTypes';
+import { useNavigate } from 'react-router-dom';
 
 const UserForm: React.FC = () => {
-  const { addUser, loading, error } = useUsers();
+  const { addUser, updateUser, editingUser, setEditingUser, loading, error } = useUsers();
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
@@ -22,7 +21,26 @@ const UserForm: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // Validation rules (updated field names)
+  // Set form data when editingUser changes
+  useEffect(() => {
+    if (editingUser) {
+      setFormData(editingUser);
+    } else {
+      // Reset form when not editing
+      setFormData({
+        fullName: '',
+        mobileNumber: '',
+        emailAddress: '',
+        dateOfBirth: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        pinCode: ''
+      });
+    }
+  }, [editingUser]);
+
+  // Validation rules
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -98,11 +116,21 @@ const UserForm: React.FC = () => {
 
     if (validateForm()) {
       try {
-        await addUser(formData);
-        alert('User added successfully!');
+        if (editingUser && editingUser._id) {
+          // Update existing user
+          await updateUser(editingUser._id, formData);
+          alert('User updated successfully!');
+          setEditingUser(null);
+        } else {
+          // Add new user
+          await addUser(formData);
+          alert('User added successfully!');
+        }
         handleReset();
+        // Navigate to list page after successful submission
+        navigate('/list');
       } catch (err) {
-        alert('Failed to add user. Please try again.');
+        alert(editingUser ? 'Failed to update user. Please try again.' : 'Failed to add user. Please try again.');
       }
     }
   };
@@ -120,6 +148,13 @@ const UserForm: React.FC = () => {
     });
     setErrors({});
     setIsSubmitted(false);
+    setEditingUser(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUser(null);
+    handleReset();
+    navigate('/list');
   };
 
   return (
@@ -128,7 +163,9 @@ const UserForm: React.FC = () => {
         <div className="col-md-10">
           <div className="card shadow">
             <div className="card-header bg-primary text-white">
-              <h2 className="text-center mb-0">User Registration Form</h2>
+              <h2 className="text-center mb-0">
+                {editingUser ? 'Edit User' : 'User Registration Form'}
+              </h2>
             </div>
             <div className="card-body">
               {error && (
@@ -290,21 +327,43 @@ const UserForm: React.FC = () => {
 
                 {/* Buttons */}
                 <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary me-md-2"
-                    onClick={handleReset}
-                    disabled={loading}
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={loading}
-                  >
-                    {loading ? 'Adding...' : 'Submit'}
-                  </button>
+                  {editingUser ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary me-md-2"
+                        onClick={handleCancelEdit}
+                        disabled={loading}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={loading}
+                      >
+                        {loading ? 'Updating...' : 'Update User'}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary me-md-2"
+                        onClick={handleReset}
+                        disabled={loading}
+                      >
+                        Reset
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={loading}
+                      >
+                        {loading ? 'Adding...' : 'Submit'}
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {isSubmitted && Object.keys(errors).length > 0 && (

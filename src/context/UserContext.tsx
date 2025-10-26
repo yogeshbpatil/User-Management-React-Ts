@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { FormData } from '../tryes/FormTypes';
-// import { FormData } from '../types/FormTypes';
 import { userService } from '../services/userService';
 
 interface UserContextType {
@@ -11,6 +10,8 @@ interface UserContextType {
   updateUser: (id: string, user: FormData) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   fetchUsers: () => Promise<void>;
+  editingUser: FormData | null;
+  setEditingUser: (user: FormData | null) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -19,6 +20,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [users, setUsers] = useState<FormData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<FormData | null>(null);
 
   // Fetch users from API
   const fetchUsers = async () => {
@@ -87,7 +89,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err) {
       setError('Failed to add user');
       console.error('Error adding user:', err);
-      throw err; // Re-throw to handle in component
+      throw err;
     } finally {
       setLoading(false);
     }
@@ -98,7 +100,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setError(null);
     try {
       const updatedUser = await userService.updateUser(id, user);
-      setUsers(prev => prev.map(u => u._id === id ? { ...user, _id: id } : u));
+      
+      // Update the user in local state
+      setUsers(prev => prev.map(u => 
+        u._id === id ? { 
+          ...user, 
+          _id: id 
+        } : u
+      ));
+      
+      // Clear editing user after successful update
+      setEditingUser(null);
     } catch (err) {
       setError('Failed to update user');
       console.error('Error updating user:', err);
@@ -131,7 +143,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       addUser, 
       updateUser, 
       deleteUser, 
-      fetchUsers 
+      fetchUsers,
+      editingUser,
+      setEditingUser
     }}>
       {children}
     </UserContext.Provider>
