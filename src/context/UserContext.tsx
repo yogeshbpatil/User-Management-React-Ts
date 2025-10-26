@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { FormData } from '../tryes/FormTypes';
 import { userService } from '../services/userService';
 
+interface ToastType {
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
 interface UserContextType {
   users: FormData[];
   loading: boolean;
@@ -12,7 +17,10 @@ interface UserContextType {
   fetchUsers: () => Promise<void>;
   editingUser: FormData | null;
   setEditingUser: (user: FormData | null) => void;
-  clearError: () => void; // Add this function
+  clearError: () => void;
+  toast: ToastType | null;
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  clearToast: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -22,9 +30,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<FormData | null>(null);
+  const [toast, setToast] = useState<ToastType | null>(null);
 
   // Clear error function
   const clearError = () => setError(null);
+
+  // Toast functions
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+  };
+
+  const clearToast = () => setToast(null);
 
   // Fetch users from API
   const fetchUsers = async () => {
@@ -46,7 +62,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }));
       setUsers(formattedUsers);
     } catch (err) {
-      setError('Failed to fetch users');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch users';
+      setError(errorMessage);
+      showToast(errorMessage, 'error');
       console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
@@ -67,7 +85,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fullName: user.fullName,
         mobileNumber: user.mobileNumber,
         emailAddress: user.emailAddress,
-        dateOfBirth: user.dateOfBirth, // Already in correct format from form
+        dateOfBirth: user.dateOfBirth, // Already in DD/MM/YYYY format from form
         addressLine1: user.addressLine1,
         addressLine2: user.addressLine2,
         city: user.city,
@@ -90,9 +108,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
 
       setUsers(prev => [...prev, formattedUser]);
+      showToast('User created successfully!', 'success');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to add user';
       setError(errorMessage);
+      showToast(errorMessage, 'error');
       console.error('Error adding user:', err);
       throw err;
     } finally {
@@ -109,7 +129,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Update the user in local state with proper date format
       setUsers(prev => prev.map(u => 
         u._id === id ? { 
-          ...user, 
+          ...updatedUser,
           _id: id,
           dateOfBirth: convertToDisplayFormat(updatedUser.dateOfBirth) // Convert to DD/MM/YYYY
         } : u
@@ -117,9 +137,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Clear editing user after successful update
       setEditingUser(null);
+      showToast('User updated successfully!', 'success');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to update user';
       setError(errorMessage);
+      showToast(errorMessage, 'error');
       console.error('Error updating user:', err);
       throw err;
     } finally {
@@ -133,9 +155,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await userService.deleteUser(id);
       setUsers(prev => prev.filter(u => u._id !== id));
+      showToast('User deleted successfully!', 'success');
     } catch (err: any) {
       const errorMessage = err.message || 'Failed to delete user';
       setError(errorMessage);
+      showToast(errorMessage, 'error');
       console.error('Error deleting user:', err);
       throw err;
     } finally {
@@ -151,7 +175,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (dateString.includes('/')) {
       const parts = dateString.split('/');
       if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2) {
-        return dateString;
+        const [first, second] = parts.map(p => parseInt(p));
+        // Check if it's already in DD/MM/YYYY (if first part > 12, it's likely day)
+        if (first > 12 && second <= 12) {
+          return dateString;
+        }
       }
     }
     
@@ -184,7 +212,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       fetchUsers,
       editingUser,
       setEditingUser,
-      clearError // Add this to the context value
+      clearError,
+      toast,
+      showToast,
+      clearToast
     }}>
       {children}
     </UserContext.Provider>
