@@ -163,20 +163,17 @@ const UserForm: React.FC = () => {
         if (editingUser && editingUser._id) {
           // Update existing user
           await updateUser(editingUser._id, formData);
-          alert('User updated successfully!');
-          setEditingUser(null);
+          // Toast will be shown from the context
+          handleResetAndNavigate();
         } else {
           // Add new user
           await addUser(formData);
-          alert('User added successfully!');
+          // Toast will be shown from the context
+          handleResetAndNavigate();
         }
-        handleReset();
-        // Navigate to list page after successful submission
-        navigate('/list');
       } catch (err: any) {
-        // Error is already set in context, no need for additional alert
+        // Error is already handled in context with toast, no need for additional handling
         console.error('Form submission error:', err);
-        // The error will be displayed in the form via the context error state
       }
     }
   };
@@ -196,6 +193,12 @@ const UserForm: React.FC = () => {
     setIsSubmitted(false);
     setEditingUser(null);
     clearError();
+  };
+
+  const handleResetAndNavigate = () => {
+    handleReset();
+    // Navigate to list page after successful submission
+    navigate('/list');
   };
 
   const handleCancelEdit = () => {
@@ -298,6 +301,7 @@ const UserForm: React.FC = () => {
                       <div className="invalid-feedback text-start">{errors.dateOfBirth}</div>
                     )}
                     <small className="form-text text-muted">
+                      
                     </small>
                   </div>
                 </div>

@@ -55,7 +55,7 @@ export const userService = {
   createUser: async (userData: CreateUserRequest): Promise<User> => {
     console.log("🆕 [CREATE USER] - Starting user creation...");
 
-    // Convert date format from YYYY-MM-DD to MM/DD/YYYY
+    // Convert date format from DD/MM/YYYY to MM/DD/YYYY for API
     const formattedUserData = {
       ...userData,
       dateOfBirth: convertDateFormat(userData.dateOfBirth),
@@ -105,17 +105,10 @@ export const userService = {
       console.log("📦 [CREATE USER] - Response data:", response.data);
 
       if (response.data.success) {
-        // Handle different possible response structures
-        if (
-          response.data.data &&
-          response.data.data.users &&
-          response.data.data.users.length > 0
-        ) {
-          return response.data.data.users[0];
-        } else if (response.data.data && response.data.data.user) {
-          return response.data.data.user;
-        } else if (response.data.user) {
-          return response.data.user;
+        // Handle the actual API response structure
+        if (response.data.data) {
+          // For POST /users/register - response.data.data contains the user directly
+          return response.data.data;
         } else {
           console.warn(
             "⚠️ [CREATE USER] - Unexpected response structure:",
@@ -179,12 +172,31 @@ export const userService = {
         formattedUserData
       );
 
-      const response = await axios.put<ApiResponse>(
+      const response = await axios.put(
         `${API_BASE_URL}/users/${id}`,
         formattedUserData
       );
+
       console.log("✅ [UPDATE USER] - User updated successfully!");
-      return response.data.data.users[0];
+      console.log("📦 [UPDATE USER] - Response data:", response.data);
+
+      if (response.data.success) {
+        // Handle the actual API response structure for update
+        if (response.data.data) {
+          // For PUT /users/{id} - response.data.data contains the updated user directly
+          return response.data.data;
+        } else {
+          console.warn(
+            "⚠️ [UPDATE USER] - Unexpected response structure:",
+            response.data
+          );
+          throw new Error("Unexpected response structure from API");
+        }
+      } else {
+        throw new Error(
+          `API Error: ${response.data.message || "Unknown error"}`
+        );
+      }
     } catch (error) {
       console.error("❌ [UPDATE USER] - Error updating user:", error);
       throw error;
@@ -195,8 +207,12 @@ export const userService = {
   deleteUser: async (id: string): Promise<void> => {
     try {
       console.log("🗑️ [DELETE USER] - Deleting user:", id);
-      await axios.delete(`${API_BASE_URL}/users/${id}`);
+      const response = await axios.delete(`${API_BASE_URL}/users/${id}`);
       console.log("✅ [DELETE USER] - User deleted successfully!");
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Failed to delete user");
+      }
     } catch (error) {
       console.error("❌ [DELETE USER] - Error deleting user:", error);
       throw error;
@@ -204,7 +220,6 @@ export const userService = {
   },
 };
 
-// Utility function to convert date format from YYYY-MM-DD to MM/DD/YYYY
 // Utility function to convert date format from DD/MM/YYYY to MM/DD/YYYY for API
 function convertDateFormat(dateString: string): string {
   console.log("📅 [DATE CONVERSION] - Converting date format:", dateString);
@@ -216,7 +231,8 @@ function convertDateFormat(dateString: string): string {
       parts.length === 3 &&
       parts[0].length === 2 &&
       parts[1].length === 2 &&
-      parts[0] <= "12"
+      parseInt(parts[0]) <= 12 && // First part is month
+      parseInt(parts[1]) <= 31 // Second part is day
     ) {
       console.log("📅 [DATE CONVERSION] - Date already in correct format");
       return dateString;
@@ -229,15 +245,30 @@ function convertDateFormat(dateString: string): string {
       .split("/")
       .map((part) => parseInt(part, 10));
 
-    // Validate date
+    // Validate date components
+    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+      throw new Error("Invalid date components");
+    }
+
+    // Validate date ranges
+    if (month < 1 || month > 12) {
+      throw new Error("Invalid month");
+    }
+    if (day < 1 || day > 31) {
+      throw new Error("Invalid day");
+    }
+    if (year < 1900 || year > 2100) {
+      throw new Error("Invalid year");
+    }
+
+    // Validate actual date
     const date = new Date(year, month - 1, day);
     if (
       isNaN(date.getTime()) ||
       date.getDate() !== day ||
       date.getMonth() !== month - 1
     ) {
-      console.error("❌ [DATE CONVERSION] - Invalid date format:", dateString);
-      throw new Error(`Invalid date format: ${dateString}`);
+      throw new Error("Invalid date");
     }
 
     const convertedDate = `${month.toString().padStart(2, "0")}/${day
@@ -248,7 +279,9 @@ function convertDateFormat(dateString: string): string {
     return convertedDate;
   } catch (error) {
     console.error("❌ [DATE CONVERSION] - Error converting date:", error);
-    throw new Error(`Invalid date format: ${dateString}`);
+    throw new Error(
+      `Invalid date format: ${dateString}. Please use DD/MM/YYYY format.`
+    );
   }
 }
 
@@ -265,9 +298,9 @@ export const convertToDisplayFormat = (dateString: string): string => {
         parts[0].length === 2 &&
         parts[1].length === 2
       ) {
-        const [first, second] = parts;
+        const [first, second] = parts.map((p) => parseInt(p));
         // Check if it's already in DD/MM/YYYY (if first part > 12, it's likely day)
-        if (parseInt(first) > 12) {
+        if (first > 12 && second <= 12) {
           return dateString;
         }
       }
@@ -293,14 +326,14 @@ export const convertToDisplayFormat = (dateString: string): string => {
 // Utility function to test the API connection and create a user
 export const testCreateUser = async () => {
   const testUser: CreateUserRequest = {
-    fullName: "Rashid Khan",
-    mobileNumber: "9652632532",
-    emailAddress: "rashidkhan@gmail.com",
-    dateOfBirth: "1996-10-05", // This will be automatically converted to "10/05/1996"
-    addressLine1: "Kabul",
-    addressLine2: "Afganistan",
-    city: "Kandhar",
-    pinCode: "889966",
+    fullName: "Test User",
+    mobileNumber: "1234567890",
+    emailAddress: "test@example.com",
+    dateOfBirth: "15/10/1990", // This will be automatically converted to "10/15/1990"
+    addressLine1: "Test Address",
+    addressLine2: "Test Line 2",
+    city: "Test City",
+    pinCode: "123456",
   };
 
   try {
@@ -311,19 +344,5 @@ export const testCreateUser = async () => {
   } catch (error) {
     console.error("💥 [TEST] - Test failed:", error);
     throw error;
-  }
-};
-
-// Alternative: If you want to accept dates in multiple formats
-export const formatDateForAPI = (dateString: string): string => {
-  // Handle multiple date formats
-  if (dateString.includes("/")) {
-    return dateString; // Already in MM/DD/YYYY format
-  } else if (dateString.includes("-")) {
-    // Convert from YYYY-MM-DD to MM/DD/YYYY
-    const [year, month, day] = dateString.split("-");
-    return `${month}/${day}/${year}`;
-  } else {
-    throw new Error(`Unsupported date format: ${dateString}`);
   }
 };
