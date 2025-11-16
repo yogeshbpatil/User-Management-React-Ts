@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
-import { FormData } from '../../tryes/FormTypes';
-import { useUsers } from '../../context/UserContext';
+import React, { useState, useEffect } from 'react';
+import { useTypedSelector, useTypedDispatch } from '../../hooks/index';
+import { fetchUsers, deleteUser, setEditingUser } from '../../store/slices/userSlice';
+import { showToast } from '../../store/slices/toastSlice';
+import type { FormData } from '../../store/types';
 import { useNavigate } from 'react-router-dom';
 
 const UserList: React.FC = () => {
-  const { users, deleteUser, setEditingUser, loading, error } = useUsers();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const dispatch = useTypedDispatch();
   const navigate = useNavigate();
 
+  const { users, loading, error } = useTypedSelector((state: any) => state.users);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Fetch users on component mount
+  useEffect(() => {
+    dispatch(fetchUsers());
+  }, [dispatch]);
+
   // Filter users based on search term
-  const filteredUsers = users.filter(user =>
+  const filteredUsers = users.filter((user: FormData) =>
     user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.emailAddress.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.mobileNumber.includes(searchTerm)
@@ -18,7 +27,8 @@ const UserList: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteUser(id!);
+      await dispatch(deleteUser(id)).unwrap();
+      dispatch(showToast({ message: 'User deleted successfully!', type: 'success' }));
       setDeleteConfirm(null);
     } catch (err) {
       console.error('Error deleting user:', err);
@@ -26,7 +36,7 @@ const UserList: React.FC = () => {
   };
 
   const handleEdit = (user: FormData) => {
-    setEditingUser(user);
+    dispatch(setEditingUser(user));
     navigate('/form'); // Navigate to form page for editing
   };
 
@@ -42,7 +52,7 @@ const UserList: React.FC = () => {
     }
   };
 
-  const formatAddress = (addressLine1: string, addressLine2: string, city: string, pinCode: string) => {
+  const formatAddress = (addressLine1: string, addressLine2: string | undefined, city: string, pinCode: string) => {
     let address = addressLine1 || '';
     if (addressLine2) address += `, ${addressLine2}`;
     if (city) address += `, ${city}`;
@@ -53,15 +63,21 @@ const UserList: React.FC = () => {
   // Safe function to get user initials
   const getUserInitials = (fullName: string) => {
     if (!fullName || typeof fullName !== 'string') return '??';
-    
-    const names = fullName.trim().split(' ');
+
+    const names = fullName.trim().split(' ').filter(name => name.length > 0);
     if (names.length === 0) return '??';
-    
+
+    const firstName = names[0];
+    if (!firstName) return '??';
+
     if (names.length === 1) {
-      return names[0].charAt(0).toUpperCase();
+      return firstName.charAt(0).toUpperCase();
     }
-    
-    return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
+
+    const lastName = names[names.length - 1];
+    if (!lastName) return firstName.charAt(0).toUpperCase();
+
+    return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
   };
 
   if (loading) {
@@ -170,8 +186,8 @@ const UserList: React.FC = () => {
                         <tr key={user._id} className={index % 2 === 0 ? 'table-default' : ''}>
                           <td className="ps-4">
                             <div className="d-flex align-items-center">
-                              <div 
-                                className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
+                              <div
+                                className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
                                 style={{ width: '40px', height: '40px' }}
                               >
                                 <span className="text-white fw-bold">
@@ -206,9 +222,9 @@ const UserList: React.FC = () => {
                           <td>
                             <small className="text-muted">
                               {formatAddress(
-                                user.addressLine1, 
-                                user.addressLine2, 
-                                user.city, 
+                                user.addressLine1,
+                                user.addressLine2,
+                                user.city,
                                 user.pinCode
                               )}
                             </small>
