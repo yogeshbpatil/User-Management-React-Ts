@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useUsers } from '../../context/UserContext';
-import { FormErrors, FormData } from '../../tryes/FormTypes';
+import { useTypedSelector, useTypedDispatch } from '../../hooks/index';
+import { createUser, updateUser, setEditingUser, clearError } from '../../store/slices/userSlice';
+import { showToast } from '../../store/slices/toastSlice';
+import type { FormErrors, FormData } from '../../store/types';
 import { useNavigate } from 'react-router-dom';
 
 const UserForm: React.FC = () => {
-  const { addUser, updateUser, editingUser, setEditingUser, loading, error, clearError } = useUsers();
+  const dispatch = useTypedDispatch();
   const navigate = useNavigate();
-  
+
+  const { loading, error, editingUser } = useTypedSelector((state: any) => state.users);
+
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     mobileNumber: '',
@@ -40,15 +44,15 @@ const UserForm: React.FC = () => {
     }
     // Clear any existing errors when form data changes
     setErrors({});
-    clearError();
-  }, [editingUser, clearError]);
+    dispatch(clearError());
+  }, [editingUser, dispatch]);
 
   // Clear error when component unmounts or when starting new operation
   useEffect(() => {
     return () => {
-      clearError();
+      dispatch(clearError());
     };
-  }, [clearError]);
+  }, [dispatch]);
 
   // Validation rules
   const validateForm = (): boolean => {
@@ -85,10 +89,16 @@ const UserForm: React.FC = () => {
       newErrors.dateOfBirth = 'Please enter date in DD/MM/YYYY format';
     } else {
       // Additional validation for valid date
-      const [day, month, year] = formData.dateOfBirth.split('/').map(Number);
-      const date = new Date(year, month - 1, day);
-      if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
-        newErrors.dateOfBirth = 'Please enter a valid date';
+      const parts = formData.dateOfBirth.split('/').map(Number);
+      const day = parts[0];
+      const month = parts[1];
+      const year = parts[2];
+      
+      if (day !== undefined && month !== undefined && year !== undefined) {
+        const date = new Date(year, month - 1, day);
+        if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
+          newErrors.dateOfBirth = 'Please enter a valid date';
+        }
       }
     }
 
@@ -116,14 +126,14 @@ const UserForm: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     let formattedValue = value;
-    
+
     // Format date input for DD/MM/YYYY
     if (name === 'dateOfBirth') {
       // Remove any non-digit characters
       const digitsOnly = value.replace(/\D/g, '');
-      
+
       // Format as DD/MM/YYYY
       if (digitsOnly.length <= 2) {
         formattedValue = digitsOnly;
@@ -149,30 +159,30 @@ const UserForm: React.FC = () => {
 
     // Clear global error when user starts typing
     if (error) {
-      clearError();
+      dispatch(clearError());
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitted(true);
-    clearError(); // Clear any previous errors
+    dispatch(clearError()); // Clear any previous errors
 
     if (validateForm()) {
       try {
         if (editingUser && editingUser._id) {
           // Update existing user
-          await updateUser(editingUser._id, formData);
-          // Toast will be shown from the context
+          await dispatch(updateUser({ id: editingUser._id, userData: formData })).unwrap();
+          dispatch(showToast({ message: 'User updated successfully!', type: 'success' }));
           handleResetAndNavigate();
         } else {
           // Add new user
-          await addUser(formData);
-          // Toast will be shown from the context
+          await dispatch(createUser(formData)).unwrap();
+          dispatch(showToast({ message: 'User created successfully!', type: 'success' }));
           handleResetAndNavigate();
         }
       } catch (err: any) {
-        // Error is already handled in context with toast, no need for additional handling
+        // Error is already handled in the slice, toast will be shown
         console.error('Form submission error:', err);
       }
     }
@@ -191,8 +201,8 @@ const UserForm: React.FC = () => {
     });
     setErrors({});
     setIsSubmitted(false);
-    setEditingUser(null);
-    clearError();
+    dispatch(setEditingUser(null));
+    dispatch(clearError());
   };
 
   const handleResetAndNavigate = () => {
@@ -202,7 +212,7 @@ const UserForm: React.FC = () => {
   };
 
   const handleCancelEdit = () => {
-    setEditingUser(null);
+    dispatch(setEditingUser(null));
     handleReset();
     navigate('/list');
   };
@@ -223,7 +233,7 @@ const UserForm: React.FC = () => {
                   <strong>Error:</strong> {error}
                 </div>
               )}
-              
+
               <form onSubmit={handleSubmit} noValidate>
                 {/* Name and Mobile Number */}
                 <div className="row">
@@ -301,7 +311,7 @@ const UserForm: React.FC = () => {
                       <div className="invalid-feedback text-start">{errors.dateOfBirth}</div>
                     )}
                     <small className="form-text text-muted">
-                      
+
                     </small>
                   </div>
                 </div>

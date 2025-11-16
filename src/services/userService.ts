@@ -1,6 +1,5 @@
 import axios from "axios";
-
-const API_BASE_URL = "https://user-management-app-6csh.onrender.com/api/v1";
+import { API_BASE_URL } from "../constants/api";
 
 export interface User {
   _id: string;
@@ -229,8 +228,8 @@ function convertDateFormat(dateString: string): string {
     const parts = dateString.split("/");
     if (
       parts.length === 3 &&
-      parts[0].length === 2 &&
-      parts[1].length === 2 &&
+      parts[0] && parts[0].length === 2 &&
+      parts[1] && parts[1].length === 2 &&
       parseInt(parts[0]) <= 12 && // First part is month
       parseInt(parts[1]) <= 31 // Second part is day
     ) {
@@ -241,12 +240,14 @@ function convertDateFormat(dateString: string): string {
 
   // Convert from DD/MM/YYYY to MM/DD/YYYY
   try {
-    const [day, month, year] = dateString
-      .split("/")
-      .map((part) => parseInt(part, 10));
+    const parts = dateString.split("/").map((part) => parseInt(part, 10));
+    const day = parts[0];
+    const month = parts[1];
+    const year = parts[2];
 
     // Validate date components
-    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+    if (day === undefined || month === undefined || year === undefined ||
+        isNaN(day) || isNaN(month) || isNaN(year)) {
       throw new Error("Invalid date components");
     }
 
@@ -295,12 +296,13 @@ export const convertToDisplayFormat = (dateString: string): string => {
       const parts = dateString.split("/");
       if (
         parts.length === 3 &&
-        parts[0].length === 2 &&
-        parts[1].length === 2
+        parts[0] && parts[0].length === 2 &&
+        parts[1] && parts[1].length === 2
       ) {
-        const [first, second] = parts.map((p) => parseInt(p));
+        const firstNum = parseInt(parts[0]);
+        const secondNum = parseInt(parts[1]);
         // Check if it's already in DD/MM/YYYY (if first part > 12, it's likely day)
-        if (first > 12 && second <= 12) {
+        if (!isNaN(firstNum) && !isNaN(secondNum) && firstNum > 12 && secondNum <= 12) {
           return dateString;
         }
       }
